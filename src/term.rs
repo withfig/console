@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display};
+use std::fmt::{self, Debug, Display};
 use std::io::{self, Read, Write};
 use std::sync::{Arc, Mutex};
 
@@ -37,10 +37,19 @@ pub enum TermTarget {
     ReadWritePair(ReadWritePair),
 }
 
-#[derive(Debug)]
 pub struct TermInner {
     target: TermTarget,
+    read_key: Option<Box<dyn Fn() -> io::Result<Key>>>,
     buffer: Option<Mutex<Vec<u8>>>,
+}
+
+impl fmt::Debug for TermInner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TermInner")
+         .field("target", &self.target)
+         .field("buffer", &self.buffer)
+         .finish()
+    }
 }
 
 /// The family of the terminal.
@@ -131,7 +140,7 @@ pub struct Term {
 }
 
 impl Term {
-    fn with_inner(inner: TermInner) -> Term {
+    pub fn with_inner(inner: TermInner) -> Term {
         let mut term = Term {
             inner: Arc::new(inner),
             is_msys_tty: false,
@@ -148,6 +157,7 @@ impl Term {
     pub fn stdout() -> Term {
         Term::with_inner(TermInner {
             target: TermTarget::Stdout,
+            read_key: None,
             buffer: None,
         })
     }
@@ -157,6 +167,17 @@ impl Term {
     pub fn stderr() -> Term {
         Term::with_inner(TermInner {
             target: TermTarget::Stderr,
+            read_key: None,
+            buffer: None,
+        })
+    }
+
+    /// Return a new unbuffered terminal to stderr.
+    #[inline]
+    pub fn stderr_with_read_key<F>(f: Box<F>) -> Term where F: Fn() -> io::Result<Key> + 'static {
+        Term::with_inner(TermInner {
+            target: TermTarget::Stderr,
+            read_key: Some(f),
             buffer: None,
         })
     }
@@ -165,6 +186,7 @@ impl Term {
     pub fn buffered_stdout() -> Term {
         Term::with_inner(TermInner {
             target: TermTarget::Stdout,
+            read_key: None,
             buffer: Some(Mutex::new(vec![])),
         })
     }
@@ -173,6 +195,7 @@ impl Term {
     pub fn buffered_stderr() -> Term {
         Term::with_inner(TermInner {
             target: TermTarget::Stderr,
+            read_key: None,
             buffer: Some(Mutex::new(vec![])),
         })
     }
@@ -200,6 +223,7 @@ impl Term {
                 write: Arc::new(Mutex::new(write)),
                 style,
             }),
+            read_key: None,
             buffer: None,
         })
     }
@@ -273,6 +297,8 @@ impl Term {
     pub fn read_key(&self) -> io::Result<Key> {
         if !self.is_tty {
             Ok(Key::Unknown)
+        } else if let Some(ref read_key) = self.inner.read_key {
+            read_key()
         } else {
             read_single_key()
         }
