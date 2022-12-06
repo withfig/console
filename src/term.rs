@@ -39,7 +39,7 @@ pub enum TermTarget {
 
 pub struct TermInner {
     target: TermTarget,
-    read_key: Option<Box<dyn Fn() -> io::Result<Key>>>,
+    read_key: Option<Box<dyn Fn() -> io::Result<Key> + Send + Sync>>,
     buffer: Option<Mutex<Vec<u8>>>,
 }
 
@@ -174,7 +174,7 @@ impl Term {
 
     /// Return a new unbuffered terminal to stderr.
     #[inline]
-    pub fn stderr_with_read_key<F>(f: Box<F>) -> Term where F: Fn() -> io::Result<Key> + 'static {
+    pub fn stderr_with_read_key<F>(f: Box<F>) -> Term where F: Fn() -> io::Result<Key> + 'static + Send + Sync {
         Term::with_inner(TermInner {
             target: TermTarget::Stderr,
             read_key: Some(f),
