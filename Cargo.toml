@@ -1,7 +1,7 @@
 [package]
 name = "console"
 description = "A terminal and console abstraction for Rust"
-version = "0.15.4"
+version = "0.15.7"
 keywords = ["cli", "terminal", "colors", "console", "ansi"]
 authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
 license = "MIT"
@@ -14,12 +14,11 @@ rust-version = "1.48.0"
 
 [features]
 default = ["unicode-width", "ansi-parsing"]
-windows-console-colors = ["ansi-parsing", "regex"]
+windows-console-colors = ["ansi-parsing"]
 ansi-parsing = []
 
 [dependencies]
-libc = "0.2.30"
-regex = { version = "1.4.2", optional = true, default-features = false, features = ["std"] }
+libc = "0.2.99"
 unicode-width = { version = "0.1", optional = true }
 lazy_static = "1.4.0"
 
@@ -27,7 +26,7 @@ lazy_static = "1.4.0"
 encode_unicode = "0.3"
 
 [target.'cfg(windows)'.dependencies.windows-sys]
-version = "0.42.0"
+version = "0.48.0"
 features = [
     "Win32_Foundation",
     "Win32_System_Console",
@@ -36,7 +35,8 @@ features = [
 ]
 
 [dev-dependencies]
-proptest = "1.0.0"
+# Pick a setup for proptest that works with wasi
+proptest = { version = "1.0.0", default-features = false, features = ["std", "bit-set", "break-dead-code"] }
 regex = "1.4.2"
 
 ## These are currently disabled.  If you want to play around with the benchmarks
